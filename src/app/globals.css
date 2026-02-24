@@ -1,0 +1,124 @@
+@import "tailwindcss";
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-forest-50: #f0f7f1;
+  --color-forest-100: #dceedd;
+  --color-forest-200: #b8ddb9;
+  --color-forest-300: #88c48c;
+  --color-forest-400: #5ba860;
+  --color-forest-500: #3a8b40;
+  --color-forest-600: #2d6f32;
+  --color-forest-700: #245829;
+  --color-forest-800: #1e4623;
+  --color-forest-900: #183a1d;
+  --color-forest-950: #0c200f;
+  --color-bark-50: #faf6f2;
+  --color-bark-100: #f3ebe0;
+  --color-bark-200: #e6d5bf;
+  --color-bark-300: #d5b897;
+  --color-bark-400: #c49a70;
+  --color-bark-500: #b88355;
+  --color-bark-600: #ab6f47;
+  --color-bark-700: #8e593c;
+  --color-bark-800: #744935;
+  --color-bark-900: #5f3d2e;
+  --color-bark-950: #331e17;
+  --color-cream-50: #fdfcf9;
+  --color-cream-100: #f9f5ed;
+  --color-cream-200: #f2e9d6;
+  --color-cream-300: #e8d7b8;
+  --color-cream-400: #dcc196;
+  --color-cream-500: #d0ab74;
+  --font-sans: var(--font-lora), Georgia, "Times New Roman", serif;
+  --font-display: var(--font-playfair), Georgia, "Times New Roman", serif;
+  --font-body: var(--font-inter), system-ui, -apple-system, sans-serif;
+}
+
+:root {
+  --background: #faf8f4;
+  --foreground: #1e2a1e;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-body);
+  line-height: 1.6;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-display);
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--color-cream-100);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-forest-400);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-forest-600);
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--color-cream-100) 25%,
+    var(--color-cream-200) 50%,
+    var(--color-cream-100) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+}
+
+.plant-card-hover {
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.plant-card-hover:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 24px -8px rgba(24, 58, 29, 0.15);
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.fade-in-up {
+  animation: fadeInUp 0.6s ease-out forwards;
+}
+
+.page-transition {
+  animation: fadeInUp 0.4s ease-out;
+}
