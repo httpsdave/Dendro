@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="none">
+  <!-- Background circle -->
+  <circle cx="16" cy="16" r="16" fill="#1a3d2b"/>
+  <!-- Leaf shape -->
+  <path
+    d="M16 6
+       C16 6 8 10 8 18
+       C8 22.418 11.582 26 16 26
+       C16 26 16 18 24 12
+       C20 10 16 6 16 6Z"
+    fill="#4ade80"
+  />
+  <!-- Stem -->
+  <line x1="16" y1="26" x2="16" y2="22" stroke="#4ade80" stroke-width="1.5" stroke-linecap="round"/>
+  <!-- Vein -->
+  <path
+    d="M16 10 C14 15 12 18 12 22"
+    stroke="#1a3d2b"
+    stroke-width="1"
+    stroke-linecap="round"
+    opacity="0.6"
+  />
+</svg>
