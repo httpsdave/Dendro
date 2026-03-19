@@ -1,6 +1,8 @@
 // GBIF (Global Biodiversity Information Facility) API service
 // Docs: https://www.gbif.org/developer/summary
 
+import { getBestPlantSummary } from '@/lib/api/wikipedia';
+
 const GBIF_BASE = 'https://api.gbif.org/v1';
 
 interface GBIFSpeciesResult {
@@ -39,6 +41,8 @@ interface GBIFOccurrenceResult {
 
 interface GBIFOccurrence {
   key: number;
+  speciesKey?: number;
+  taxonKey?: number;
   species?: string;
   scientificName?: string;
   genericName?: string;
@@ -168,7 +172,7 @@ export async function getPhilippinePlantDetail(speciesKey: number) {
     getVernacularNames(speciesKey).catch(() => ({ results: [] })),
   ]);
 
-  const images = mediaRes.results
+  const gbifImages = mediaRes.results
     .filter((m) => m.type === 'StillImage' && m.identifier)
     .map((m) => m.identifier);
 
@@ -176,18 +180,42 @@ export async function getPhilippinePlantDetail(speciesKey: number) {
     .filter((n) => n.language === 'eng' || !n.language)
     .map((n) => n.vernacularName);
 
+  const wiki = await getBestPlantSummary([
+    species.canonicalName,
+    species.scientificName,
+    species.species,
+    ...commonNames,
+  ]);
+
+  const wikiImage = wiki?.imageUrl || wiki?.thumbnailUrl || null;
+  const images = Array.from(new Set([...gbifImages, ...(wikiImage ? [wikiImage] : [])]));
+
+  const wikiCommonName = wiki?.title && !isLikelyScientificName(wiki.title) ? wiki.title : null;
+  const mergedCommonNames = Array.from(
+    new Set([...commonNames, ...(wikiCommonName ? [wikiCommonName] : [])])
+  );
+  const displayName =
+    mergedCommonNames[0] || species.canonicalName || species.scientificName || 'Unknown Plant';
+
   return {
     id: `gbif-${species.key}`,
     gbifKey: species.key,
-    name: commonNames[0] || species.canonicalName || species.scientificName,
-    scientificName: species.scientificName,
+    name: displayName,
+    commonName: displayName,
+    scientificName: species.scientificName || species.canonicalName || displayName,
     canonicalName: species.canonicalName,
     family: species.family || null,
     genus: species.genus || null,
     kingdom: species.kingdom,
     imageUrl: images[0] || null,
     images,
-    commonNames,
+    commonNames: mergedCommonNames,
+    observations: wiki?.extract || null,
+    wikiUrl: wiki?.url || null,
+    sources: [
+      { name: 'GBIF', url: `https://www.gbif.org/species/${species.key}` },
+      ...(wiki ? [{ name: 'Wikipedia', url: wiki.url }] : []),
+    ],
     rank: species.rank,
     taxonomicStatus: species.taxonomicStatus,
     source: 'gbif' as const,
@@ -195,9 +223,9 @@ export async function getPhilippinePlantDetail(speciesKey: number) {
 }
 
 // Normalize GBIF species results to match our Plant interface
-export function normalizeGBIFPlants(
+export async function normalizeGBIFPlants(
   results: GBIFSpecies[]
-): Array<{
+): Promise<Array<{
   id: string;
   slug: string;
   name: string;
@@ -206,17 +234,52 @@ export function normalizeGBIFPlants(
   familyCommonName: string | null;
   imageUrl: string | null;
   source: string;
-}> {
-  return results
+  description?: string | null;
+  wikiUrl?: string | null;
+}>> {
+  const validResults = results
     .filter((sp) => sp.canonicalName || sp.scientificName)
     .map((sp) => ({
-      id: `gbif-${sp.key}`,
-      slug: (sp.canonicalName || sp.scientificName).toLowerCase().replace(/\s+/g, '-'),
-      name: sp.vernacularName || sp.canonicalName || sp.scientificName,
-      scientificName: sp.scientificName,
-      family: sp.family || null,
-      familyCommonName: null,
-      imageUrl: null, // GBIF species search doesn't include media; needs separate call
-      source: 'gbif',
+      ...sp,
+      scientificName: sp.scientificName || sp.canonicalName || '',
     }));
+
+  const enriched = await Promise.all(
+    validResults.map(async (sp) => {
+      const [mediaRes, wiki] = await Promise.all([
+        getSpeciesMedia(sp.key).catch(() => ({ results: [] })),
+        getBestPlantSummary([
+          sp.vernacularName,
+          sp.canonicalName,
+          sp.scientificName,
+          sp.species,
+        ]),
+      ]);
+
+      const gbifImage = mediaRes.results.find((m) => m.type === 'StillImage' && m.identifier)?.identifier || null;
+      const wikiImage = wiki?.thumbnailUrl || wiki?.imageUrl || null;
+      const imageUrl = gbifImage || wikiImage;
+      const wikiCommonName = wiki?.title && !isLikelyScientificName(wiki.title) ? wiki.title : null;
+
+      return {
+        id: `gbif-${sp.key}`,
+        slug: (sp.canonicalName || sp.scientificName).toLowerCase().replace(/\s+/g, '-'),
+        name: sp.vernacularName || wikiCommonName || sp.canonicalName || sp.scientificName,
+        scientificName: sp.scientificName,
+        family: sp.family || null,
+        familyCommonName: null,
+        imageUrl,
+        source: 'gbif',
+        description: wiki?.extract || null,
+        wikiUrl: wiki?.url || null,
+      };
+    })
+  );
+
+  return enriched;
+}
+
+function isLikelyScientificName(value: string): boolean {
+  const cleaned = value.trim();
+  return /^[A-Z][a-z-]+(?:\s[a-z-]+){1,2}(?:\s[a-z.-]+)?$/.test(cleaned);
 }

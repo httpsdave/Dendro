@@ -59,7 +59,7 @@ export async function GET(request: NextRequest) {
         const offset = (page - 1) * limit;
         const gbifResult = await gbif.listPhilippineSpecies(query || undefined, limit, offset);
 
-        const plants = gbif.normalizeGBIFPlants(gbifResult.results);
+        const plants = await gbif.normalizeGBIFPlants(gbifResult.results);
 
         return NextResponse.json({
           plants,

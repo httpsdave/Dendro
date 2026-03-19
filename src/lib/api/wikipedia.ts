@@ -14,6 +14,35 @@ export interface WikiPlantData {
   url: string;
 }
 
+interface WikiSummaryResponse {
+  title?: string;
+  description?: string;
+  originalimage?: { source?: string };
+  thumbnail?: { source?: string };
+  extract?: string;
+  content_urls?: { desktop?: { page?: string } };
+}
+
+function buildWikiPlantData(data: WikiSummaryResponse, fallbackName: string): WikiPlantData {
+  const encoded = encodeURIComponent(fallbackName.replace(/\s+/g, '_'));
+  return {
+    title: data.title || fallbackName,
+    description: data.description || '',
+    imageUrl: data.originalimage?.source || null,
+    thumbnailUrl: data.thumbnail?.source || null,
+    extract: cleanExtract(data.extract || ''),
+    url: data.content_urls?.desktop?.page || `https://en.wikipedia.org/wiki/${encoded}`,
+  };
+}
+
+function isLikelyDisambiguation(description: string): boolean {
+  return /disambiguation/i.test(description || '');
+}
+
+function hasUsefulWikiContent(data: WikiPlantData): boolean {
+  return Boolean(data.extract || data.imageUrl || data.thumbnailUrl);
+}
+
 /**
  * Get a plant summary from Wikipedia by scientific or common name
  */
@@ -31,15 +60,11 @@ export async function getPlantSummary(plantName: string): Promise<WikiPlantData 
 
     if (res.ok) {
       const data = await res.json();
-      if (data.type === 'standard' || data.type === 'disambiguation') {
-        return {
-          title: data.title || plantName,
-          description: data.description || '',
-          imageUrl: data.originalimage?.source || null,
-          thumbnailUrl: data.thumbnail?.source || null,
-          extract: cleanExtract(data.extract || ''),
-          url: data.content_urls?.desktop?.page || `https://en.wikipedia.org/wiki/${encoded}`,
-        };
+      if (data.type === 'standard') {
+        const summary = buildWikiPlantData(data, plantName);
+        if (!isLikelyDisambiguation(summary.description)) {
+          return summary;
+        }
       }
     }
 
@@ -141,6 +166,30 @@ export async function batchGetPlantData(
 export async function getPlantImage(plantName: string): Promise<string | null> {
   const summary = await getPlantSummary(plantName);
   return summary?.imageUrl || summary?.thumbnailUrl || null;
+}
+
+/**
+ * Try multiple candidate names and return the first high-quality Wikipedia match.
+ */
+export async function getBestPlantSummary(
+  candidates: Array<string | null | undefined>
+): Promise<WikiPlantData | null> {
+  const uniqueCandidates = Array.from(
+    new Set(
+      candidates
+        .map((value) => value?.trim())
+        .filter((value): value is string => Boolean(value))
+    )
+  );
+
+  for (const candidate of uniqueCandidates) {
+    const summary = await getPlantSummary(candidate);
+    if (!summary) continue;
+    if (isLikelyDisambiguation(summary.description)) continue;
+    if (hasUsefulWikiContent(summary)) return summary;
+  }
+
+  return null;
 }
 
 // ── Featured Philippine plants with Wikipedia data ──

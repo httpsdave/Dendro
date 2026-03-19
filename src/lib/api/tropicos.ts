@@ -1,6 +1,8 @@
 // Tropicos API service (Missouri Botanical Garden)
 // Docs: https://services.tropicos.org/help
 
+import { getBestPlantSummary } from '@/lib/api/wikipedia';
+
 const TROPICOS_BASE = 'https://services.tropicos.org';
 const TROPICOS_KEY = process.env.TROPICOS_API_KEY || '';
 
@@ -254,35 +256,67 @@ export interface NormalizedPlant {
   familyCommonName: string | null;
   imageUrl: string | null;
   source: string;
+  description?: string | null;
+  wikiUrl?: string | null;
   tropicosId?: number;
 }
 
 /** Enrich names with best available image */
 async function enrichWithImages(names: TropicosName[]): Promise<NormalizedPlant[]> {
-  const imageResults = await Promise.allSettled(names.map((n) => getNameImages(n.NameId)));
+  const enrichmentResults = await Promise.allSettled(
+    names.map(async (name) => {
+      const [images, wiki] = await Promise.all([
+        getNameImages(name.NameId),
+        getBestPlantSummary([name.ScientificName, name.ScientificNameWithAuthors]),
+      ]);
+
+      return { images, wiki };
+    })
+  );
 
   return names.map((name, i) => {
     let imageUrl: string | null = null;
-    if (imageResults[i].status === 'fulfilled') {
-      const images = (imageResults[i] as PromiseFulfilledResult<TropicosImage[]>).value;
+    let description: string | null = null;
+    let wikiUrl: string | null = null;
+    let commonName: string | null = null;
+
+    if (enrichmentResults[i].status === 'fulfilled') {
+      const { images, wiki } = (enrichmentResults[i] as PromiseFulfilledResult<{
+        images: TropicosImage[];
+        wiki: Awaited<ReturnType<typeof getBestPlantSummary>>;
+      }>).value;
+
       // Prefer photo over herbarium specimen
       const photo = images.find((img) => img.ImageKindText === 'Photo (general)');
       const bestImage = photo || images[0];
-      if (bestImage) {
-        imageUrl = bestImage.DetailJpgUrl || bestImage.ThumbnailUrl || null;
+      const tropicosImage = bestImage?.DetailJpgUrl || bestImage?.ThumbnailUrl || null;
+      const wikiImage = wiki?.thumbnailUrl || wiki?.imageUrl || null;
+
+      imageUrl = tropicosImage || wikiImage;
+      description = wiki?.extract || null;
+      wikiUrl = wiki?.url || null;
+      if (wiki?.title && !isLikelyScientificName(wiki.title)) {
+        commonName = wiki.title;
       }
     }
 
     return {
       id: `tropicos-${name.NameId}`,
       slug: name.ScientificName.toLowerCase().replace(/\s+/g, '-'),
-      name: name.ScientificName,
+      name: commonName || name.ScientificName,
       scientificName: name.ScientificNameWithAuthors || name.ScientificName,
       family: name.Family || null,
       familyCommonName: null,
       imageUrl,
       source: 'tropicos',
+      description,
+      wikiUrl,
       tropicosId: name.NameId,
     };
   });
+}
+
+function isLikelyScientificName(value: string): boolean {
+  const cleaned = value.trim();
+  return /^[A-Z][a-z-]+(?:\s[a-z-]+){1,2}(?:\s[a-z.-]+)?$/.test(cleaned);
 }

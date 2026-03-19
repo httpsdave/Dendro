@@ -3,6 +3,7 @@ import * as trefle from '@/lib/api/trefle';
 import * as tropicos from '@/lib/api/tropicos';
 import * as gbif from '@/lib/api/gbif';
 import * as perenual from '@/lib/api/perenual';
+import { getBestPlantSummary } from '@/lib/api/wikipedia';
 
 export async function GET(
   request: NextRequest,
@@ -33,20 +34,33 @@ export async function GET(
 
       const photo = images.find((img) => img.ImageKindText === 'Photo (general)');
       const bestImage = photo || images[0];
+      const wiki = await getBestPlantSummary([
+        detail.ScientificName,
+        detail.ScientificNameWithAuthors,
+      ]);
+      const wikiImage = wiki?.imageUrl || wiki?.thumbnailUrl || null;
+      const primaryImage = bestImage?.DetailJpgUrl || bestImage?.ThumbnailUrl || wikiImage || null;
+      const commonName =
+        wiki?.title && !isLikelyScientificName(wiki.title) ? wiki.title : null;
+      const otherImages = images.map((i) => ({ url: i.DetailJpgUrl, caption: i.Caption }));
+
+      if (wikiImage && !otherImages.some((img) => img.url === wikiImage)) {
+        otherImages.push({ url: wikiImage, caption: 'Wikipedia image' });
+      }
 
       const plant = {
         id: `tropicos-${detail.NameId}`,
         slug: detail.ScientificName.toLowerCase().replace(/\s+/g, '-'),
-        commonName: null,
+        commonName,
         scientificName: detail.ScientificName,
         family: detail.Family || null,
         familyCommonName: null,
         genus: detail.Genus || null,
-        imageUrl: bestImage?.DetailJpgUrl || bestImage?.ThumbnailUrl || null,
+        imageUrl: primaryImage,
         year: detail.DisplayDate || null,
         author: detail.Author || null,
         bibliography: detail.DisplayReference || null,
-        observations: null,
+        observations: wiki?.extract || null,
         vegetable: false,
         edible: false,
         ediblePart: null,
@@ -54,9 +68,9 @@ export async function GET(
         status: detail.NomenclatureStatusName || null,
         rank: detail.RankAbbreviation || null,
         source: 'tropicos',
-        images: images.length > 0 ? {
+        images: otherImages.length > 0 ? {
           habit: images.filter((i) => i.ShortDescription === 'Habit').map((i) => ({ url: i.DetailJpgUrl })),
-          other: images.map((i) => ({ url: i.DetailJpgUrl, caption: i.Caption })),
+          other: otherImages,
         } : {},
         flower: {},
         foliage: {},
@@ -67,7 +81,10 @@ export async function GET(
         distributions: {},
         commonNames: {},
         synonyms: [],
-        sources: [{ name: 'Tropicos', url: `http://www.tropicos.org/Name/${detail.NameId}` }],
+        sources: [
+          { name: 'Tropicos', url: `http://www.tropicos.org/Name/${detail.NameId}` },
+          ...(wiki ? [{ name: 'Wikipedia', url: wiki.url }] : []),
+        ],
       };
 
       return NextResponse.json({ plant, meta: {} });
@@ -84,7 +101,7 @@ export async function GET(
       const plant = {
         id: plantDetail.id,
         slug: plantDetail.scientificName.toLowerCase().replace(/\s+/g, '-'),
-        commonName: plantDetail.name,
+        commonName: plantDetail.commonName || plantDetail.name,
         scientificName: plantDetail.scientificName,
         family: plantDetail.family || null,
         familyCommonName: null,
@@ -93,7 +110,7 @@ export async function GET(
         year: null,
         author: null,
         bibliography: null,
-        observations: null,
+        observations: plantDetail.observations || null,
         vegetable: false,
         edible: false,
         ediblePart: null,
@@ -113,7 +130,7 @@ export async function GET(
         distributions: {},
         commonNames: plantDetail.commonNames.length > 0 ? { en: plantDetail.commonNames } : {},
         synonyms: [],
-        sources: [{ name: 'GBIF', url: `https://www.gbif.org/species/${gbifKey}` }],
+        sources: plantDetail.sources || [{ name: 'GBIF', url: `https://www.gbif.org/species/${gbifKey}` }],
       };
 
       return NextResponse.json({ plant, meta: {} });
@@ -232,4 +249,9 @@ export async function GET(
       { status: 500 }
     );
   }
+}
+
+function isLikelyScientificName(value: string): boolean {
+  const cleaned = value.trim();
+  return /^[A-Z][a-z-]+(?:\s[a-z-]+){1,2}(?:\s[a-z.-]+)?$/.test(cleaned);
 }

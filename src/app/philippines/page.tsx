@@ -12,26 +12,34 @@ const PH_HIGHLIGHTS = [
   {
     name: 'Narra',
     scientific: 'Pterocarpus indicus',
-    image: 'https://images.unsplash.com/photo-1502082553048-f009c37129b9?w=600',
-    desc: 'The national tree of the Philippines, Narra is prized for its durable timber and beautiful rose-gold wood grain. It is widely found in Philippine forests.',
+    image: 'https://upload.wikimedia.org/wikipedia/commons/5/5b/%E5%8D%B0%E5%BA%A6%E7%B4%AB%E6%AA%80_Pterocarpus_indicus_20200807191221_09.jpg',
+    desc: 'A large leguminous tree native to Southeast Asia and the western Pacific, including the Philippines. Narra is widely recognized in the country as its national tree.',
+    sourceName: 'Wikipedia',
+    sourceUrl: 'https://en.wikipedia.org/wiki/Pterocarpus_indicus',
   },
   {
     name: 'Sampaguita',
     scientific: 'Jasminum sambac',
-    image: 'https://images.unsplash.com/photo-1606041008023-472dfb5e530f?w=600',
-    desc: 'The national flower of the Philippines, known for its small, fragrant white blossoms. Deeply rooted in Filipino culture and traditions.',
+    image: 'https://upload.wikimedia.org/wikipedia/commons/f/f3/Arabian_jasmin%2C_Tunisia_2010.jpg',
+    desc: 'A jasmine species cultivated across South and Southeast Asia, known for its fragrant white flowers. Sampaguita is the national flower of the Philippines.',
+    sourceName: 'Wikipedia',
+    sourceUrl: 'https://en.wikipedia.org/wiki/Jasminum_sambac',
   },
   {
     name: 'Waling-Waling',
     scientific: 'Vanda sanderiana',
-    image: 'https://images.unsplash.com/photo-1567306226416-28f0efdc88ce?w=600',
-    desc: 'Often called the "Queen of Philippine Orchids," this stunning orchid is endemic to Mindanao and is one of the most prized orchid species worldwide.',
+    image: 'https://upload.wikimedia.org/wikipedia/commons/1/15/Waling_waling_orchid.jpg',
+    desc: 'An orchid species from the Philippines, commonly called waling-waling. It is closely associated with Mindanao and is often referred to as the queen of Philippine flowers.',
+    sourceName: 'Wikipedia',
+    sourceUrl: 'https://en.wikipedia.org/wiki/Vanda_sanderiana',
   },
   {
     name: 'Jade Vine',
     scientific: 'Strongylodon macrobotrys',
-    image: 'https://images.unsplash.com/photo-1416879595882-3373a0480b5b?w=600',
-    desc: 'A rare, turquoise-blue vine native to the tropical rainforests of the Philippines. It produces claw-shaped flowers in dramatic cascading clusters.',
+    image: 'https://upload.wikimedia.org/wikipedia/commons/1/14/Strongylodon_macrobotrys%2C_Bagong_Silang%2C_Los_Ba%C3%B1os%2C_Laguna%2C_Philippines_1.jpg',
+    desc: 'An endemic Philippine leguminous vine known for dramatic hanging clusters of turquoise, claw-shaped flowers. It is widely cultivated as an ornamental in tropical collections.',
+    sourceName: 'Wikipedia',
+    sourceUrl: 'https://en.wikipedia.org/wiki/Strongylodon_macrobotrys',
   },
 ];
 
@@ -174,6 +182,14 @@ export default function PhilippinesPage() {
                   <h3 className="font-display font-bold text-forest-900 text-lg mb-0.5">{plant.name}</h3>
                   <p className="text-sm text-forest-500 italic mb-3">{plant.scientific}</p>
                   <p className="text-sm text-forest-600 leading-relaxed">{plant.desc}</p>
+                  <a
+                    href={plant.sourceUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-block mt-3 text-xs text-forest-500 hover:text-forest-700 underline"
+                  >
+                    Source: {plant.sourceName}
+                  </a>
                 </div>
               </div>
             </motion.div>
